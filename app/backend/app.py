@@ -19,10 +19,8 @@ from flask import (
     send_from_directory,
 )
 
-from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
-from approaches.readdecomposeask import ReadDecomposeAsk
-from approaches.readretrieveread import ReadRetrieveReadApproach
-from approaches.retrievethenread import RetrieveThenReadApproach
+from approaches.chat.chatreadretrieveread import ChatReadRetrieveReadApproach
+from approaches.chat.chatreadretrieveread_sk import ChatReadRetrieveRead_SemanticKernel
 
 # Replace these with your own values, either in environment variables or directly here
 AZURE_STORAGE_ACCOUNT = os.getenv("AZURE_STORAGE_ACCOUNT", "mystorageaccount")
@@ -34,6 +32,7 @@ AZURE_OPENAI_GPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_GPT_DEPLOYMENT", "davinci"
 AZURE_OPENAI_CHATGPT_DEPLOYMENT = os.getenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT", "chat")
 AZURE_OPENAI_CHATGPT_MODEL = os.getenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-35-turbo")
 AZURE_OPENAI_EMB_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMB_DEPLOYMENT", "embedding")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
 KB_FIELDS_CATEGORY = os.getenv("KB_FIELDS_CATEGORY", "category")
@@ -45,6 +44,7 @@ CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CLIENT = "blob_client"
 
+USING_API_TOKEN = False
 
 bp = Blueprint("routes", __name__, static_folder='static')
 
@@ -59,6 +59,7 @@ def favicon():
 @bp.route("/assets/<path:path>")
 def assets(path):
     return send_from_directory("static/assets", path)
+
 
 # Serve content files from blob storage from within the app to keep the example self-contained.
 # *** NOTE *** this assumes that the content files are public, or at least that all users of the app
@@ -76,26 +77,13 @@ def content_file(path):
     blob.readinto(blob_file)
     blob_file.seek(0)
     return send_file(blob_file, mimetype=mime_type, as_attachment=False, download_name=path)
-
-@bp.route("/ask", methods=["POST"])
-def ask():
-    if not request.is_json:
-        return jsonify({"error": "request must be json"}), 415
-    approach = request.json["approach"]
-    try:
-        impl = current_app.config[CONFIG_ASK_APPROACHES].get(approach)
-        if not impl:
-            return jsonify({"error": "unknown approach"}), 400
-        r = impl.run(request.json["question"], request.json.get("overrides") or {})
-        return jsonify(r)
-    except Exception as e:
-        logging.exception("Exception in /ask")
-        return jsonify({"error": str(e)}), 500
+    
 
 @bp.route("/chat", methods=["POST"])
 def chat():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
+    print(request.get_json())
     approach = request.json["approach"]
     try:
         impl = current_app.config[CONFIG_CHAT_APPROACHES].get(approach)
@@ -109,11 +97,12 @@ def chat():
 
 @bp.before_request
 def ensure_openai_token():
-    openai_token = current_app.config[CONFIG_OPENAI_TOKEN]
-    if openai_token.expires_on < time.time() + 60:
-        openai_token = current_app.config[CONFIG_CREDENTIAL].get_token("https://cognitiveservices.azure.com/.default")
-        current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
-        openai.api_key = openai_token.token
+    if USING_API_TOKEN:
+        openai_token = current_app.config[CONFIG_OPENAI_TOKEN]
+        if openai_token.expires_on < time.time() + 60:
+            openai_token = current_app.config[CONFIG_CREDENTIAL].get_token("https://cognitiveservices.azure.com/.default")
+            current_app.config[CONFIG_OPENAI_TOKEN] = openai_token
+            openai.api_key = openai_token.token
 
 
 def create_app():
@@ -138,49 +127,34 @@ def create_app():
     openai.api_type = "azure"
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
     openai.api_version = "2023-05-15"
-
+    openai.api_key = OPENAI_API_KEY
     # Comment these two lines out if using keys, set your API key in the OPENAI_API_KEY environment variable instead
-    openai.api_type = "azure_ad"
-    openai_token = azure_credential.get_token(
-        "https://cognitiveservices.azure.com/.default"
-    )
-    openai.api_key = openai_token.token
+    #openai.api_type = "azure_ad"
+    #openai_token = azure_credential.get_token(
+    #    "https://cognitiveservices.azure.com/.default"
+    #)
+    #openai.api_key = openai_token.token
 
     # Store on app.config for later use inside requests
-    app.config[CONFIG_OPENAI_TOKEN] = openai_token
+    #app.config[CONFIG_OPENAI_TOKEN] = openai_token
     app.config[CONFIG_CREDENTIAL] = azure_credential
     app.config[CONFIG_BLOB_CLIENT] = blob_client
     # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
     # or some derivative, here we include several for exploration purposes
-    app.config[CONFIG_ASK_APPROACHES] = {
-        "rtr": RetrieveThenReadApproach(
-            search_client,
-            AZURE_OPENAI_CHATGPT_DEPLOYMENT,
-            AZURE_OPENAI_CHATGPT_MODEL,
-            AZURE_OPENAI_EMB_DEPLOYMENT,
-            KB_FIELDS_SOURCEPAGE,
-            KB_FIELDS_CONTENT
-        ),
-        "rrr": ReadRetrieveReadApproach(
-            search_client,
-            AZURE_OPENAI_GPT_DEPLOYMENT,
-            AZURE_OPENAI_EMB_DEPLOYMENT,
-            KB_FIELDS_SOURCEPAGE,
-            KB_FIELDS_CONTENT
-        ),
-        "rda": ReadDecomposeAsk(search_client,
-            AZURE_OPENAI_GPT_DEPLOYMENT,
-            AZURE_OPENAI_EMB_DEPLOYMENT,
-            KB_FIELDS_SOURCEPAGE,
-            KB_FIELDS_CONTENT
-        )
-    }
+
     app.config[CONFIG_CHAT_APPROACHES] = {
         "rrr": ChatReadRetrieveReadApproach(
             search_client,
             AZURE_OPENAI_CHATGPT_DEPLOYMENT,
             AZURE_OPENAI_CHATGPT_MODEL,
             AZURE_OPENAI_EMB_DEPLOYMENT,
+            KB_FIELDS_SOURCEPAGE,
+            KB_FIELDS_CONTENT,
+        ),
+        "rrr_sk": ChatReadRetrieveRead_SemanticKernel(
+            search_client,
+            AZURE_OPENAI_CHATGPT_DEPLOYMENT,
+            AZURE_OPENAI_CHATGPT_MODEL,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
         )
@@ -191,5 +165,7 @@ def create_app():
     return app
 
 if __name__ == "__main__":
+    
     app = create_app()
-    app.run()
+    app.config["JSON_SORT_KEYS"] = False
+    app.run(debug=True)

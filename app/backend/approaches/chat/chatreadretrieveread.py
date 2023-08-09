@@ -22,7 +22,7 @@ class ChatReadRetrieveReadApproach(Approach):
     top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion
     (answer) with that prompt.
     """
-    system_message_chat_conversation = """Assistant helps the company employees with their healthcare plan questions, and questions about the employee handbook. Be brief in your answers.
+    system_message_chat_conversation = """Assistant helps the company employees with questions within their domain. Be brief in your answers.
 Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question.
 For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question.
 Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
@@ -59,7 +59,7 @@ If you cannot generate a search query, return just the number 0.
         exclude_category = overrides.get("exclude_category") or None
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
-        user_q = 'Generate search query for: ' + history[-1]["user"]
+        user_q = 'Generate search query for: ' + history[-1]["content"]
 
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
         messages = self.get_messages_from_history(
@@ -70,7 +70,7 @@ If you cannot generate a search query, return just the number 0.
             self.query_prompt_few_shots,
             self.chatgpt_token_limit - len(user_q)
             )
-
+        print("Generating search query...")
         chat_completion = openai.ChatCompletion.create(
             deployment_id=self.chatgpt_deployment,
             model=self.chatgpt_model,
@@ -81,7 +81,7 @@ If you cannot generate a search query, return just the number 0.
 
         query_text = chat_completion.choices[0].message.content
         if query_text.strip() == "0":
-            query_text = history[-1]["user"] # Use the last user input if we failed to generate a better query
+            query_text = history[-1]["content"] # Use the last user input if we failed to generate a better query
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
 
@@ -92,6 +92,7 @@ If you cannot generate a search query, return just the number 0.
         if not has_text:
             query_text = None
 
+        print("Reading...")
         # Use semantic L2 reranker if requested and if retrieval mode is text or hybrid (vectors + text)
         if overrides.get("semantic_ranker") and has_text:
             r = self.search_client.search(query_text,
@@ -140,9 +141,10 @@ If you cannot generate a search query, return just the number 0.
             system_message + "\n\nSources:\n" + content,
             self.chatgpt_model,
             history,
-            history[-1]["user"],
+            history[-1]["content"],
             max_tokens=self.chatgpt_token_limit)
 
+        print("Generating answer...")
         chat_completion = openai.ChatCompletion.create(
             deployment_id=self.chatgpt_deployment,
             model=self.chatgpt_model,
@@ -154,9 +156,9 @@ If you cannot generate a search query, return just the number 0.
         chat_content = chat_completion.choices[0].message.content
         msg_to_display = '\n\n'.join([str(message) for message in messages])
         chat_content = append_citations(chat_content, refs)
+        
 
-
-        return {"data_points": results, "answer": chat_content,"citations":refs, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
+        return {"data_points": results, "answer": chat_content, "thoughts": f"Searched for:<br>{query_text}<br><br>Conversations:<br>" + msg_to_display.replace('\n', '<br>')}
 
     def get_messages_from_history(self, system_prompt: str, model_id: str, history: Sequence[dict[str, str]], user_conv: str, few_shots = [], max_tokens: int = 4096) -> []:
         message_builder = MessageBuilder(system_prompt, model_id)
@@ -171,11 +173,9 @@ If you cannot generate a search query, return just the number 0.
         message_builder.append_message(self.USER, user_content, index=append_index)
 
         for h in reversed(history[:-1]):
-            if h.get("bot"):
-                message_builder.append_message(self.ASSISTANT, h.get('bot'), index=append_index)
-            message_builder.append_message(self.USER, h.get('user'), index=append_index)
-            if message_builder.token_length > max_tokens:
-                break
+                message_builder.append_message(self.ASSISTANT, h["role"], index=append_index)
+            #if message_builder.token_length > max_tokens:
+            #    break
 
         messages = message_builder.messages
         return messages

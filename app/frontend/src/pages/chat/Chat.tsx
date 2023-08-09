@@ -4,7 +4,7 @@ import { SparkleFilled } from "@fluentui/react-icons";
 
 import styles from "./Chat.module.css";
 
-import { chatApi, ChatApproaches, ChatRequest, ChatTurn, ChatResponse } from "../../api";
+import { chatApi, ChatApproaches, ChatRequest, AskResponse, ChatMessage } from "../../api";
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
@@ -32,10 +32,11 @@ const Chat = () => {
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
 
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
-    const [answers, setAnswers] = useState<[user: string, response: ChatResponse][]>([]);
+    const [answers, setAnswers] = useState<[user: string, response: AskResponse][]>([]);
 
     const makeApiRequest = async (question: string) => {
         lastQuestionRef.current = question;
+        const abortController = new AbortController();
 
         error && setError(undefined);
         setIsLoading(true);
@@ -43,9 +44,9 @@ const Chat = () => {
         setActiveAnalysisPanelTab(undefined);
 
         try {
-            const history: ChatTurn[] = answers.map(a => ({ user: a[0], bot: a[1].answer }));
+            const history: ChatMessage[] = answers.map(a => ({ role: a[0], content: a[1].answer }));
             const request: ChatRequest = {
-                history: [...history, { user: question, bot: undefined }],
+                history: [...history, { role: "user", content: question }],
                 approach: approach,
                 overrides: {
                     promptTemplate: promptTemplate.length === 0 ? undefined : promptTemplate,
@@ -127,10 +128,6 @@ const Chat = () => {
         {
             key: ChatApproaches.ReadRetrieveRead,
             text: "Read-Retrieve-Read"
-        },
-        {
-            key: ChatApproaches.ReadRetrieveRead_LC,
-            text: "Read-Retrieve-Read LangChain"
         },
         {
             key: ChatApproaches.ReadRetrieveRead_SK,

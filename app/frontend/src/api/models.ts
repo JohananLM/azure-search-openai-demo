@@ -7,6 +7,8 @@ export const enum ChatApproaches {
 export type AskResponse = {
     answer: string;
     citations: Citation[];
+    thoughts: string | null;
+    data_points: string[];
     error?: string;
 };
 
@@ -32,20 +34,14 @@ export type ChatMessage = {
     end_turn?: boolean;
 };
 
-export enum ChatCompletionType {
-    ChatCompletion = "chat.completion",
-    ChatCompletionChunk = "chat.completion.chunk"
-}
-
 export type ChatResponseChoice = {
     messages: ChatMessage[];
 };
 
-export type ChatResponseAOAI = {
+export type ChatResponse = {
     id: string;
     model: string;
     created: number;
-    object: ChatCompletionType;
     choices: ChatResponseChoice[];
     error?: any;
 };
@@ -76,21 +72,8 @@ export type AskRequestOverrides = {
     promptTemplateSuffix?: string;
 };
 
-export type ChatResponse = {
-    answer: string;
-    citations: string[];
-    thoughts: string | null;
-    data_points: string[];
-    error?: string;
-};
-
-export type ChatTurn = {
-    user: string;
-    bot?: string;
-};
-
 export type ChatRequest = {
-    history: ChatTurn[];
+    history: ChatMessage[];
     approach: ChatApproaches;
     overrides?: AskRequestOverrides;
 };

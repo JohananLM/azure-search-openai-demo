@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { getCitationFilePath } from "../../api";
+import { Citation, getCitationFilePath } from "../../api";
 
 type HtmlParsedAnswer = {
     answerHtml: string;
     citations: string[];
 };
 
-export function parseAnswerToHtml(answer: string, citationsInput: string[], onCitationClicked: (citationFilePath: string) => void): HtmlParsedAnswer {
+export function parseAnswerToHtml(answer: string, onCitationClicked: (citationFilePath: string) => void): HtmlParsedAnswer {
     const citations: string[] = [];
 
     // Extract any follow-up questions that might be in the answer
