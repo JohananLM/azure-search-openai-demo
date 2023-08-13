@@ -4,7 +4,7 @@ import DOMPurify from "dompurify";
 import styles from "./AnalysisPanel.module.css";
 
 import { SupportingContent } from "../SupportingContent";
-import { ChatResponse } from "../../api";
+import { AskResponse } from "../../api";
 import { AnalysisPanelTabs } from "./AnalysisPanelTabs";
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
     onActiveTabChanged: (tab: AnalysisPanelTabs) => void;
     activeCitation: string | undefined;
     citationHeight: string;
-    answer: ChatResponse;
+    answer: AskResponse;
 }
 
 const pivotItemDisabledStyle = { disabled: true, style: { color: "grey" } };

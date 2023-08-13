@@ -12,7 +12,7 @@
   "input": {
     "parameters": [
       {
-        "name": "input",
+        "name": "answer",
         "description": "The answer which contains citations in square brackets.",
         "defaultValue": ""
       },

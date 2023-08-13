@@ -1,0 +1,5 @@
+1. Added abortSignal to chatAPi in api.ts
+2. Prev ChatResponse is refactored into AskResponse
+3. Deleted ChatTurn
+4. ChatRequest.history is of type ChatMessage[]
+5. Removed citation field in parseAnswerToHtml

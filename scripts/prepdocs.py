@@ -94,6 +94,7 @@ def table_to_html(table):
     table_html += "</table>"
     return table_html
 
+
 def get_document_text(filename):
     offset = 0
     page_map = []
@@ -108,7 +109,7 @@ def get_document_text(filename):
         if args.verbose: print(f"Extracting text from '{filename}' using Azure Form Recognizer")
         form_recognizer_client = DocumentAnalysisClient(endpoint=f"https://{args.formrecognizerservice}.cognitiveservices.azure.com/", credential=formrecognizer_creds, headers={"x-ms-useragent": "azure-search-chat-demo/1.0.0"})
         with open(filename, "rb") as f:
-            poller = form_recognizer_client.begin_analyze_document("prebuilt-layout", document = f)
+            poller = form_recognizer_client.begin_analyze_document("prebuilt-read", document = f)
         form_recognizer_results = poller.result()
 
         for page_num, page in enumerate(form_recognizer_results.pages):

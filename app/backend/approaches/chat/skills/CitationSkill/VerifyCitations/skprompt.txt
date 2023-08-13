@@ -1,0 +1,85 @@
+# Task Description
+
+1. The input is composed of an answer and a list of sources. The answer follows the "Answer:" key word and the sources follow the "Sources:" keyword. 
+2. Each source is made up of a filename, followed by a colon, then finally with the contents of the file. 
+3. In the answer, there are citations within square brackets. These square brackets correspond to a filename. 
+2. Rewrite the answer so that each fact in the answer corresponds to the correct source. If the filename is wrong, correct this file name. If there is a fact with no source, add the correct filename in the proper format.
+3. When rewriting the text, ensure that:
+   - You make minimal changes
+   - The text remains grammatically correct and coherent
+   - Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
+   - If the citations are correct do not make any changes. 
+   - If the answer does not know because the information does not exist then remove citations. 
+4. Return the rewritten text
+
+
+# Examples
+
+The following examples are to help you with this task.
+
+## Example 1
+
+Answer:
+James won the tournament in 2020 [source 3.pdf]. He obtained a winning of $1,000,000. 
+
+Sources:
+source 1.pdf: The winner of the tournament is granted an earning of $1,000,000.
+source 2.docx: The winners of the yearly tournaments are:
+2019 - Rachel
+2020 - James
+2021 - Robert
+2022 - Cassidy
+source 3.pdf: The winner earning is deposited into their bank account. 
+
+Response:
+
+James won the tournament in 2020 [source 2.docx]. He obtained a winning of $1,000,000.[source 1.pdf]
+
+## Example 2
+
+Answer:
+James won the tournament in 2020 [source 2.docx]. He obtained a winning of $1,000,000.[source 1.pdf]
+
+Sources:
+source 1.pdf: The winner of the tournament is granted an earning of $1,000,000.
+source 2.docx: The winners of the yearly tournaments are:
+2019 - Rachel
+2020 - James
+2021 - Robert
+2022 - Cassidy
+source 3.pdf: The winner earning is deposited into their bank account. 
+
+Response:
+
+James won the tournament in 2020 [source 2.docx]. He obtained a winning of $1,000,000.[source 1.pdf]
+
+## Example 2
+
+Answer:
+I do not know. Do you require any other assistance? [source 2.docx][source 1.pdf]
+
+Sources:
+source 1.pdf: The winner of the tournament is granted an earning of $1,000,000.
+source 2.docx: The winners of the yearly tournaments are:
+2019 - Rachel
+2020 - James
+2021 - Robert
+2022 - Cassidy
+source 3.pdf: The winner earning is deposited into their bank account. 
+
+Response:
+
+I do not know. Do you require any other assistance? 
+
+# Task
+
+Read the answer after the "Answer:" keyword, then the list of sources after the "Sources:" keyword . Carefully rewrite
+the text so that the sources are correctly mentioned and placed. 
+
+Answer:
+{{$answer}}
+
+Sources:
+{{$sources}}
+
+Response:
