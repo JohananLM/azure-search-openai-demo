@@ -17,6 +17,7 @@ const Chat = () => {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
     const [retrieveCount, setRetrieveCount] = useState<number>(3);
+    const [retrieveTemp, setRetrieveTemp] = useState<number>(0.2);
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
     const [useSemanticCaptions, setUseSemanticCaptions] = useState<boolean>(false);
     const [excludeCategory, setExcludeCategory] = useState<string>("");
@@ -44,7 +45,12 @@ const Chat = () => {
         setActiveAnalysisPanelTab(undefined);
 
         try {
-            const history: ChatMessage[] = answers.map(a => ({ role: a[0], content: a[1].answer }));
+            const history: ChatMessage[] = answers
+                .map(a => [
+                    { role: "user", content: a[0] },
+                    { role: "assistant", content: a[1].answer }
+                ])
+                .flat();
             const request: ChatRequest = {
                 history: [...history, { role: "user", content: question }],
                 approach: approach,
@@ -52,6 +58,7 @@ const Chat = () => {
                     promptTemplate: promptTemplate.length === 0 ? undefined : promptTemplate,
                     excludeCategory: excludeCategory.length === 0 ? undefined : excludeCategory,
                     top: retrieveCount,
+                    temperature: retrieveTemp,
                     semanticRanker: useSemanticRanker,
                     semanticCaptions: useSemanticCaptions
                 }
@@ -81,6 +88,10 @@ const Chat = () => {
 
     const onRetrieveCountChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
         setRetrieveCount(parseInt(newValue || "3"));
+    };
+
+    const onRetrieveTempChange = (_ev?: React.SyntheticEvent<HTMLElement, Event>, newValue?: string) => {
+        setRetrieveTemp(parseFloat(newValue || "0.3"));
     };
 
     const onApproachChange = (_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IChoiceGroupOption) => {
@@ -235,6 +246,14 @@ const Chat = () => {
                         max={50}
                         defaultValue={retrieveCount.toString()}
                         onChange={onRetrieveCountChange}
+                    />
+                    <SpinButton
+                        className={styles.chatSettingsSeparator}
+                        label="Temperature:"
+                        min={0}
+                        max={1}
+                        defaultValue={retrieveTemp.toString()}
+                        onChange={onRetrieveTempChange}
                     />
                     <TextField className={styles.chatSettingsSeparator} label="Exclude category" onChange={onExcludeCategoryChanged} />
                     <Checkbox

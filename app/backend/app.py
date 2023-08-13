@@ -44,7 +44,6 @@ CONFIG_ASK_APPROACHES = "ask_approaches"
 CONFIG_CHAT_APPROACHES = "chat_approaches"
 CONFIG_BLOB_CLIENT = "blob_client"
 
-USING_API_TOKEN = False
 
 bp = Blueprint("routes", __name__, static_folder='static')
 
@@ -97,7 +96,6 @@ def chat():
 
 @bp.before_request
 def ensure_openai_token():
-    if USING_API_TOKEN:
         openai_token = current_app.config[CONFIG_OPENAI_TOKEN]
         if openai_token.expires_on < time.time() + 60:
             openai_token = current_app.config[CONFIG_CREDENTIAL].get_token("https://cognitiveservices.azure.com/.default")
@@ -127,16 +125,16 @@ def create_app():
     openai.api_type = "azure"
     openai.api_base = f"https://{AZURE_OPENAI_SERVICE}.openai.azure.com"
     openai.api_version = "2023-05-15"
-    openai.api_key = OPENAI_API_KEY
+    #openai.api_key = OPENAI_API_KEY
     # Comment these two lines out if using keys, set your API key in the OPENAI_API_KEY environment variable instead
-    #openai.api_type = "azure_ad"
-    #openai_token = azure_credential.get_token(
-    #    "https://cognitiveservices.azure.com/.default"
-    #)
-    #openai.api_key = openai_token.token
+    openai.api_type = "azure_ad"
+    openai_token = azure_credential.get_token(
+        "https://cognitiveservices.azure.com/.default"
+    )
+    openai.api_key = openai_token.token
 
     # Store on app.config for later use inside requests
-    #app.config[CONFIG_OPENAI_TOKEN] = openai_token
+    app.config[CONFIG_OPENAI_TOKEN] = openai_token
     app.config[CONFIG_CREDENTIAL] = azure_credential
     app.config[CONFIG_BLOB_CLIENT] = blob_client
     # Various approaches to integrate GPT and external knowledge, most applications will use a single one of these patterns
@@ -155,6 +153,7 @@ def create_app():
             search_client,
             AZURE_OPENAI_CHATGPT_DEPLOYMENT,
             AZURE_OPENAI_CHATGPT_MODEL,
+            OPENAI_API_KEY,
             KB_FIELDS_SOURCEPAGE,
             KB_FIELDS_CONTENT,
         )

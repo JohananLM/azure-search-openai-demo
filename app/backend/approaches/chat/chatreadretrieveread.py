@@ -17,18 +17,13 @@ class ChatReadRetrieveReadApproach(Approach):
     USER = "user"
     ASSISTANT = "assistant"
 
-    """
-    Simple retrieve-then-read implementation, using the Cognitive Search and OpenAI APIs directly. It first retrieves
-    top documents from search, then constructs a prompt with them, and then uses OpenAI to generate an completion
-    (answer) with that prompt.
-    """
     system_message_chat_conversation = """Assistant helps the company employees with questions within their domain. Be brief in your answers.
-Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question.
+Answer ONLY with the facts listed in the list of sources below. If there isn't enough information below, say you don't know. Do not generate answers that don't use the sources below. If asking a clarifying question to the user would help, ask the question. If possible answer with less than five sentences.
 For tabular information return it as an html table. Do not return markdown format. If the question is not in English, answer in the language used in the question.
 Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. Use square brackets to reference the source, e.g. [info1.txt]. Don't combine sources, list each source separately, e.g. [info1.txt][info2.pdf].
 {injected_prompt}
 """
-    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base about employee healthcare plans and the employee handbook.
+    query_prompt_template = """Below is a history of the conversation so far, and a new question asked by the user that needs to be answered by searching in a knowledge base.
 Generate a search query based on the conversation and the new question.
 Do not include cited source filenames and document names e.g info.txt or doc.pdf in the search query terms.
 Do not include any text inside [] or <<>> in the search query terms.
@@ -56,11 +51,13 @@ If you cannot generate a search query, return just the number 0.
         has_vector = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
         use_semantic_captions = True if overrides.get("semantic_captions") and has_text else False
         top = overrides.get("top") or 3
+        temp = overrides.get("temperature") or 0.0
         exclude_category = overrides.get("exclude_category") or None
         filter = "category ne '{}'".format(exclude_category.replace("'", "''")) if exclude_category else None
 
         user_q = 'Generate search query for: ' + history[-1]["content"]
-
+        print(temp)
+        
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
         messages = self.get_messages_from_history(
             self.query_prompt_template,
@@ -77,6 +74,7 @@ If you cannot generate a search query, return just the number 0.
             messages=messages,
             temperature=0.0,
             max_tokens=32,
+            request_timeout=5,
             n=1)
 
         query_text = chat_completion.choices[0].message.content
@@ -149,9 +147,12 @@ If you cannot generate a search query, return just the number 0.
             deployment_id=self.chatgpt_deployment,
             model=self.chatgpt_model,
             messages=messages,
-            temperature=overrides.get("temperature") or 0.7,
+            temperature=temp,
+            request_timeout = 10,
             max_tokens=1024,
             n=1)
+
+        print("Finished generating answer")
 
         chat_content = chat_completion.choices[0].message.content
         msg_to_display = '\n\n'.join([str(message) for message in messages])
@@ -173,7 +174,7 @@ If you cannot generate a search query, return just the number 0.
         message_builder.append_message(self.USER, user_content, index=append_index)
 
         for h in reversed(history[:-1]):
-                message_builder.append_message(self.ASSISTANT, h["role"], index=append_index)
+                message_builder.append_message(h["role"], h["content"], index=append_index)
             #if message_builder.token_length > max_tokens:
             #    break
 
